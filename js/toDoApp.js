@@ -1,29 +1,107 @@
-;
-(function(exports) {
+;(function(exports) {
+
     "use strict";
 
     Parse.TodoRouter = Parse.Router.extend({
+        initialize: function(){
 
-        initialize: function() {
-            this.collection = new Parse.TodoActualList();
-
-            this.view1 = new Parse.TodoView({
+            this.collection = new Parse.TodoList();
+            this.view = new Parse.TodoView({
                 collection: this.collection
             });
-
-            this.view2 = new Parse.TodoViewDetail({});
-
+            // this.authView = new Parse.AuthView({});
             this.collection.fetch();
 
             Parse.history.start();
         },
         routes: {
-            "*default": "home",
-            "details/:item": "showDetail"
+            // "login": "login",
+            "*default": "home"
         },
+        // amILoggedIn: function(){
+
+        // },
+        // login: function(){
+
+        // },
         home: function() {
-            this.view1.render();
-            //this.view2.render(); //Temporary: we'll move the detail view later
+            this.view.render();
+        }
+    })
+
+    Parse.TodoView = Parse.TemplateView.extend({
+        el: ".container1",
+        view: "todoList",
+        events: {
+            "submit .addItemForm": "addItem",
+            "change input[name='urgent']": "urgentIsChecked",
+            "change input[name='isDone']": "doneIsChecked",
+            "keyup .description": "setDescription"
+        },
+        addItem: function(event) {
+            event.preventDefault();
+            var data = {
+                title: this.el.querySelector("input").value,
+                user: Parse.user.current()
+            }
+            this.collection.create(data, {
+                validate: true
+            });
+        },
+        getModelAssociatedWithEvent: function(event){ // Borrowed from Matt. Thanks Matt :)
+            var el = event.target,
+                li = $(el).closest('li')[0],
+                id = li.getAttribute('id'),
+                m = this.collection.get(id);
+
+            return m;
+        },
+        urgentIsChecked: function(e) {
+            var m = this.getModelAssociatedWithEvent(e);
+            if(m){
+                m.set('urgent', !m.get('urgent'));
+                this.collection.sort();
+                this.render();
+            };
+        },
+        doneIsChecked: function(e){
+            var m = this.getModelAssociatedWithEvent(e);
+            if(m){
+                m.set('done', !m.get('done'));
+                this.collection.sort();
+                this.render();
+            };
+        },
+        setDescription: function(e){
+            var m = this.getModelAssociatedWithEvent(e);
+            if(m){
+                m.set('description', e.target.innertext);
+                m.save();
+            }
+        }
+    })
+
+    Parse.AuthView = Parse.TemplateView.extend({
+        el: ".container1",
+        view: "Auth",
+        events: {
+            "submit .login": "login",
+            "submit .register": "register"
+        },
+        initialize: function(options) {
+            this.options = options;
+            // this.listenTo(Parse, "newModelForDetailView", this.setModel)
+            this.model && this.model.on("change", this.render.bind(this));
+            this.collection && this.collection.on("add reset remove", this.render.bind(this));
+        },
+        setModel: function(model) {
+            if (this.model === model) {
+                this.model = null;
+                this.el.innerHTML = "";
+            } else {
+                this.model = model;
+                this.render();
+            }
         }
     })
 
@@ -45,54 +123,12 @@
         }
     })
 
-    Parse.TodoActualList = Parse.Collection.extend({
+    Parse.TodoList = Parse.Collection.extend({
         model: Parse.TodoModel
 
     //     querySelector = new Parse.Query(ParseTodo);
     //     todos.query = query;
     //     todos.fetch();
-    })
-
-    Parse.TodoView = Parse.TemplateView.extend({
-        el: ".container1",
-        view: "todoList",
-        events: {
-            "submit .addItemForm": "addItem"
-        },
-        addItem: function(event) {
-            event.preventDefault();
-            var x = {
-                title: this.el.querySelector("input[name = 'John']").value
-            }
-            this.collection.create(x, {
-                validate: true
-            });
-            console.log("Yay!");
-            // debugger;
-        },
-        checked: function() {
-
-        }
-    })
-
-    Parse.TodoViewDetail = Parse.TemplateView.extend({
-        el: ".container2",
-        view: "todoDetails",
-        initialize: function(options) {
-            this.options = options;
-            // this.listenTo(Parse, "newModelForDetailView", this.setModel)
-            this.model && this.model.on("change", this.render.bind(this));
-            this.collection && this.collection.on("add reset remove", this.render.bind(this));
-        },
-        setModel: function(model) {
-            if (this.model === model) {
-                this.model = null;
-                this.el.innerHTML = "";
-            } else {
-                this.model = model;
-                this.render();
-            }
-        }
     })
 
 })(typeof module === "object" ? module.exports : window)
